@@ -1,17 +1,22 @@
-from loguru import logger
+"""Utilities and tools for tracking runs with Weights & Biases."""
+
+from loguru import logger as logu
 import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict
-from tqdm import tqdm
+
 import yaml
+from tqdm import tqdm
 
-
-FILE = Path(__file__).resolve()  # absolute path
-ROOT = FILE.parents[2]  # 2 is determined by the project structure
+FILE = Path(__file__).resolve()
+ROOT = FILE.parents[3]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
+    sys.path.append(str(ROOT))  # add ROOT to PATH
+
+from utils.datasets import LoadImagesAndLabels, img2label_paths
+from utils.general import check_dataset, check_file
 
 try:
     import wandb
@@ -23,16 +28,33 @@ except (ImportError, AssertionError):
 RANK = int(os.getenv('RANK', -1))
 WANDB_ARTIFACT_PREFIX = 'wandb-artifact://'
 
+
 def remove_prefix(from_string, prefix=WANDB_ARTIFACT_PREFIX):
     return from_string[len(prefix):]
 
-def check_wandb_dataset(data_dict):
-    is_trainset_wandb_artifact = (isinstance(data_dict['train'], str) and
-                                  data_dict['train'].startswith(WANDB_ARTIFACT_PREFIX))
-    is_valset_wandb_artifact = (isinstance(data_dict['val'], str) and
-                                data_dict['val'].startswith(WANDB_ARTIFACT_PREFIX))
+
+def check_wandb_config_file(data_config_file):
+    wandb_config = '_wandb.'.join(data_config_file.rsplit('.', 1))  # updated data.yaml path
+    if Path(wandb_config).is_file():
+        return wandb_config
+    return data_config_file
+
+
+def check_wandb_dataset(data_file):
+    is_trainset_wandb_artifact = False
+    is_valset_wandb_artifact = False
+    if check_file(data_file) and data_file.endswith('.yaml'):
+        with open(data_file, errors='ignore') as f:
+            data_dict = yaml.safe_load(f)
+        is_trainset_wandb_artifact = (isinstance(data_dict['train'], str) and
+                                      data_dict['train'].startswith(WANDB_ARTIFACT_PREFIX))
+        is_valset_wandb_artifact = (isinstance(data_dict['val'], str) and
+                                    data_dict['val'].startswith(WANDB_ARTIFACT_PREFIX))
     if is_trainset_wandb_artifact or is_valset_wandb_artifact:
         return data_dict
+    else:
+        return check_dataset(data_file)
+
 
 def get_run_info(run_path):
     run_path = Path(remove_prefix(run_path, WANDB_ARTIFACT_PREFIX))
@@ -41,6 +63,7 @@ def get_run_info(run_path):
     entity = run_path.parent.parent.stem
     model_artifact_name = 'run_' + run_id + '_model'
     return entity, project, run_id, model_artifact_name
+
 
 def check_wandb_resume(opt):
     process_wandb_config_ddp_mode(opt) if RANK not in [-1, 0] else None
@@ -55,8 +78,9 @@ def check_wandb_resume(opt):
             return True
     return None
 
+
 def process_wandb_config_ddp_mode(opt):
-    with open(opt.data, errors='ignore') as f:
+    with open(check_file(opt.data), errors='ignore') as f:
         data_dict = yaml.safe_load(f)  # data dict
     train_dir, val_dir = None, None
     if isinstance(data_dict['train'], str) and data_dict['train'].startswith(WANDB_ARTIFACT_PREFIX):
@@ -72,12 +96,12 @@ def process_wandb_config_ddp_mode(opt):
         val_dir = val_artifact.download()
         val_path = Path(val_dir) / 'data/images/'
         data_dict['val'] = str(val_path)
-
     if train_dir or val_dir:
         ddp_data_path = str(Path(val_dir) / 'wandb_local_data.yaml')
         with open(ddp_data_path, 'w') as f:
             yaml.safe_dump(data_dict, f)
-        opt.data = ddp_data_path  # opt is not returned, how this makes sense
+        opt.data = ddp_data_path
+
 
 class WandbLogger():
     """Log training runs, datasets, models, and predictions to Weights & Biases.
@@ -95,7 +119,7 @@ class WandbLogger():
 
     def __init__(self, opt, run_id=None, job_type='Training'):
         """
-        - Initialize Wandblogger instance
+        - Initialize WandbLogger instance
         - Upload dataset if opt.upload_dataset is True
         - Setup trainig processes if job_type is 'Training'
 
@@ -118,7 +142,7 @@ class WandbLogger():
         self.wandb_artifact_data_dict = None
         self.data_dict = None
         # It's more elegant to stick to 1 wandb.init call,
-        #  but useful config data is overwritten in the Wandblogger's wandb.init call
+        #  but useful config data is overwritten in the WandbLogger's wandb.init call
         if isinstance(opt.resume, str):  # checks resume from artifact
             if opt.resume.startswith(WANDB_ARTIFACT_PREFIX):
                 entity, project, run_id, model_artifact_name = get_run_info(opt.resume)
@@ -199,7 +223,7 @@ class WandbLogger():
         if isinstance(opt.resume, str):
             modeldir, _ = self.download_model_artifact(opt)
             if modeldir:
-                self.weights = Path(modeldir) / "latest_ckpt.pth"
+                self.weights = Path(modeldir) / "last.pt"
                 config = self.wandb_run.config
                 opt.weights, opt.save_period, opt.batch_size, opt.bbox_interval, opt.epochs, opt.hyp = str(
                     self.weights), config.save_period, config.batch_size, config.bbox_interval, config.epochs, \
@@ -290,10 +314,10 @@ class WandbLogger():
             'total_epochs': opt.epochs,
             'fitness_score': fitness_score
         })
-        model_artifact.add_file(str(path / 'latest_ckpt.pth'), name='latest_ckpt.pth')
+        model_artifact.add_file(str(path / 'last.pt'), name='last.pt')
         wandb.log_artifact(model_artifact,
                            aliases=['latest', 'last', 'epoch ' + str(self.current_epoch), 'best' if best_model else ''])
-        logger.info(f"Saving model artifact on epoch {epoch + 1}")
+        LOGGER.info(f"Saving model artifact on epoch {epoch + 1}")
 
     def log_dataset_artifact(self, data_file, single_cls, project, overwrite_config=False):
         """
@@ -337,7 +361,7 @@ class WandbLogger():
             data.pop('path', None)
             with open(path, 'w') as f:
                 yaml.safe_dump(data, f)
-                logger.info(f"Created dataset config file {path}")
+                LOGGER.info(f"Created dataset config file {path}")
 
         if self.job_type == 'Training':  # builds correct artifact pipeline graph
             if not log_val_only:
@@ -358,7 +382,7 @@ class WandbLogger():
         Useful for - referencing artifacts for evaluation.
         """
         self.val_table_path_map = {}
-        logger.info("Mapping dataset")
+        LOGGER.info("Mapping dataset")
         for i, data in enumerate(tqdm(self.val_table.data)):
             self.val_table_path_map[data[3]] = data[0]
 
@@ -374,7 +398,7 @@ class WandbLogger():
         returns:
         dataset artifact to be logged or used
         """
-        # Explore multiprocessing to slpit this loop parallely| This is essential for speeding up the the logging
+        # TODO: Explore multiprocessing to slpit this loop parallely| This is essential for speeding up the the logging
         artifact = wandb.Artifact(name=name, type="dataset")
         img_files = tqdm([dataset.path]) if isinstance(dataset.path, str) and Path(dataset.path).is_dir() else None
         img_files = tqdm(dataset.img_files) if not img_files else img_files
@@ -492,7 +516,7 @@ class WandbLogger():
                 try:
                     wandb.log(self.log_dict)
                 except BaseException as e:
-                    logger.info(
+                    LOGGER.info(
                         f"An error occurred in wandb logger. The training will proceed without interruption. More info\n{e}")
                     self.wandb_run.finish()
                     self.wandb_run = None

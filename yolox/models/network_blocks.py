@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import pytorch_lightning as pl
 
 def get_activation(name="silu", inplace=True):
     if name == "silu":
@@ -14,7 +14,7 @@ def get_activation(name="silu", inplace=True):
               f"nn.LeakyRelU] respectively, but got {name} "
 
 
-class BaseConv(nn.Module):
+class BaseConv(pl.LightningModule):
     """
     spatial resolution non-degenerated convolution when stride is 1, so the padding should meet:
     padding = (kernel_size - 1) // 2. (Note: kernel_size is odd)
@@ -34,7 +34,7 @@ class BaseConv(nn.Module):
         return self.act(self.conv(x))
 
 
-class DWConv(nn.Module):
+class DWConv(pl.LightningModule):
     """
     BaseConv + 1x1 Conv
     """
@@ -57,7 +57,7 @@ class DWConv(nn.Module):
         return self.pointconv(self.depthconv(x))
 
 
-class ResLayer(nn.Module):
+class ResLayer(pl.LightningModule):
     """
     Residual layer which keep the same size of channel before and after Conv
     """
@@ -82,7 +82,7 @@ class ResLayer(nn.Module):
         return x + y
 
 
-class Bottleneck(nn.Module):
+class Bottleneck(pl.LightningModule):
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -104,12 +104,12 @@ class Bottleneck(nn.Module):
         return y
 
 
-class SPPBottleNeck(nn.Module):
+class SPPBottleNeck(pl.LightningModule):
     def __init__(self, in_channels, out_channels, kernel_size=(5, 9, 13), act="silu"):
         super().__init__()
         hidden_channels = in_channels // 2
         self.conv1 = BaseConv(in_channels, hidden_channels, kernel_size=1, stride=1, act=act)
-        self.bottleneck = nn.ModuleList(
+        self.bottleneck = pl.LightningModuleList(
             [nn.MaxPool2d(ks, padding=(ks // 2)) for ks in kernel_size]
         )
         cat_channels = hidden_channels * (len(kernel_size) + 1)
@@ -121,8 +121,8 @@ class SPPBottleNeck(nn.Module):
         return self.conv2(x)
 
 
-class CSPLayer(nn.Module):
-    """C3 in yolov5, CSP Bottleneck with 3 convolutions"""
+class CSPLayer(pl.LightningModule):
+    """C3 in yolox, CSP Bottleneck with 3 convolutions"""
 
     def __init__(self,
                  in_channels,
@@ -158,7 +158,7 @@ class CSPLayer(nn.Module):
         return self.conv3(y)
 
 
-class Fcous(nn.Module):
+class Fcous(pl.LightningModule):
     """
     Blocksize fixes to 4.
     """
