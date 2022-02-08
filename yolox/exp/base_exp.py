@@ -12,7 +12,7 @@ import torch
 from torch.nn import Module
 
 from utils import LRScheduler
-
+from ruamel import yaml
 
 class BaseExp(metaclass=ABCMeta):
     """Basic class for any experiment."""
@@ -73,3 +73,14 @@ class BaseExp(metaclass=ABCMeta):
                     except Exception:
                         v = ast.literal_eval(v)
                 setattr(self, k, v)
+
+    def config_dump(self, save_path:str="./opt.yaml"):
+        """
+        :param save_path: the path to save the yaml file
+        :return: None
+        """
+        with open(save_path, "w", encoding='utf8') as f:
+            yaml.dump(self.__dict__, f, Dumper=yaml.RoundTripDumper,
+                      default_flow_style=False,allow_unicode=True, indent=4)
+
+
