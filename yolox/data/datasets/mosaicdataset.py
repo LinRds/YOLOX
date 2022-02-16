@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from utils import adjust_box_anns
 
-from datasets_wrapper import Dataset
+from .datasets_wrapper import Dataset
 from ..data_augment import random_affine
 
 
@@ -24,18 +24,18 @@ def get_mosaic_coordinate(xc, yc, patch_w, patch_h, mosaic_w, mosaic_h, index):
         x1, y1, x2, y2 = max(0, xc - patch_w), max(0, yc - patch_h), xc, yc
         patch_coordinates = max(0, patch_w - xc), max(0, patch_h - yc), patch_w, patch_h
     elif index == 1:
-        x1, y1, x2, y2 = xc, max(yc - patch_h, 0), mosaic_w, yc
-        patch_coordinates = 0, patch_h - (y2 - y1), min(x2 - x1, patch_w), patch_h
+        x1, y1, x2, y2 = xc, max(yc - patch_h, 0), min(mosaic_w, xc + patch_w), yc
+        patch_coordinates = 0, max(patch_h - (y2 - y1), 0), min(x2 - x1, patch_w), patch_h
     elif index == 2:
         x1, y1, x2, y2 = max(xc - patch_w, 0), yc, xc, min(mosaic_h - patch_h, mosaic_h)
-        patch_coordinates = patch_w - (x2 - x1), 0, patch_w, min(y2 - y1, patch_h)
+        patch_coordinates = max(patch_w - (x2 - x1), 0), 0, patch_w, min(y2 - y1, patch_h)
     elif index == 3:
         x1, y1, x2, y2 = xc, yc, min(xc + patch_w, mosaic_w), min(yc + patch_h, mosaic_h)
         patch_coordinates = 0, 0, min(x2 - x1, patch_w), min(y2 - y1, patch_h)
     return (x1, y1, x2, y2), patch_coordinates
 
 class MosaicDataset(Dataset):
-    def __init__(self, dataset, image_size, mosaic=True,
+    def __init__(self, dataset, image_size=(640, 640), mosaic=True,
                  preproc=None, degrees=10.0, translate=0.1,
                  mosaic_scale=(0.5, 1.5), mixup_scale=(0.5, 1.5), shear=2.0,
                  mixup=True, mosaic_prob=1.0, mixup_prob=1.0, *args):
@@ -68,12 +68,17 @@ class MosaicDataset(Dataset):
             yc = int(np.random.uniform(0.25, 0.75) * input_h * 2)
             for i, item in enumerate(idx):
                 img, _labels, _, img_id = self._dataset.pull_item(item)
-                h, w, c = img.shape
-                scale = min(input_h / h, input_w / w)
-                img = cv2.resize(img, (int(h * scale), int(w * scale)), interpolation=cv2.INTER_LINEAR)
+                h0, w0 = img.shape[:2]  # orig hw
+                scale = min(1. * input_h / h0, 1. * input_w / w0)
+                img = cv2.resize(
+                    img, (int(w0 * scale), int(h0 * scale)), interpolation=cv2.INTER_LINEAR
+                )
+                # generate output mosaic image
+                (h, w, c) = img.shape[:3]
                 if i == 0:
-                    mosaic_img = mosaic_img[:, :, np.newaxis].repeat(c, axis=2)
-                (x1, y1, x2, y2), (patch_x1, patch_x2, patch_y1, patch_y2) = get_mosaic_coordinate(xc, yc, w, h, input_w * 2, input_h * 2, i)
+                    mosaic_img = np.full((input_h * 2, input_w * 2, c), 114, dtype=np.uint8)
+                (x1, y1, x2, y2), (patch_x1, patch_y1, patch_x2, patch_y2) = \
+                    get_mosaic_coordinate(xc, yc, w, h, input_w * 2, input_h * 2, i)
                 mosaic_img[y1:y2, x1:x2] = img[patch_y1:patch_y2, patch_x1:patch_x2]
 
                 shift_h, shift_w = (y1 - patch_y1), (x1 - patch_x1)
