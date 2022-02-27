@@ -102,7 +102,7 @@ def main(args):
     mosaic_scale = literal_eval(args.mosaic_scale)
     mixup_scale = literal_eval(args.mixup_scale)
     random_size = None
-    strides = literal_eval(args.stride)
+    strides = literal_eval(args.strides)
     in_channels = literal_eval(args.in_channels)
     in_features = literal_eval(args.in_features)
     log_dir = ROOT/"YOLOX_outputs"
