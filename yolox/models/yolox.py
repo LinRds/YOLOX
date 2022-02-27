@@ -64,6 +64,7 @@ class YOLOX(pl.LightningModule):
         self.testdev = args.testdev
         self.is_distributed = get_world_size() > 1
         self.decode_in_inference = decode_in_inference
+
     def forward(self, x):
         # fpn output content features of [dark3, dark4, dark5]
         return self.head(self.backbone(x))
