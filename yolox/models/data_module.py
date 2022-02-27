@@ -7,6 +7,7 @@ import os
 from typing import Any, List, Dict, Tuple, Union
 import torch.distributed as dist
 import torch
+from argparse import ArgumentParser
 
 
 class YOLOXDataModule(pl.LightningDataModule):
@@ -212,3 +213,24 @@ class YOLOXDataModule(pl.LightningDataModule):
             yolox_path = os.path.dirname(os.path.dirname(yolox.__file__))
             yolox_datadir = os.path.join(yolox_path, "datasets")
         return yolox_datadir
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):  # param no-cover
+        """
+        Define parameters that only apply to this model
+        """
+        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        # logging params
+        parser.add_argument(
+            "--mosaic_scale",
+            default='[0.5, 1.5]',
+            type=str,
+            help="the str array will be parsed by eval()",
+        )
+        parser.add_argument(
+            "--mixup_scale",
+            default='[0.5, 1.5]',
+            type=str,
+            help="the str array will be parsed by eval()",
+        )
+        return parser

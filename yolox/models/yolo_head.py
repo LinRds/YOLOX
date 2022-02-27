@@ -173,5 +173,11 @@ class YOLOXHead(nn.Module):
             type=int,
             help="Number of classes",
         )
+        parser.add_argument(
+            "--strides",
+            default='[8, 16, 32]',
+            type=str,
+            help="the str array will be parsed by eval()",
+        )
         return parser
 

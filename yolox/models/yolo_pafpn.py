@@ -124,4 +124,10 @@ class YOLOPAFPN(nn.Module):
             type=float,
             help="depth of the network",
         )
+        parser.add_argument(
+            "--in_features",
+            default="['dark3', 'dark4', 'dark5']",
+            type=str,
+            help="the features extracted from fpn. Note: the str array will be parsed by eval()",
+        )
         return parser
