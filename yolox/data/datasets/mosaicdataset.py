@@ -22,16 +22,16 @@ def get_mosaic_coordinate(xc, yc, patch_w, patch_h, mosaic_w, mosaic_h, index):
     patch_coordinates = ()
     if index == 0:
         x1, y1, x2, y2 = max(0, xc - patch_w), max(0, yc - patch_h), xc, yc
-        patch_coordinates = max(0, patch_w - xc), max(0, patch_h - yc), patch_w, patch_h
+        patch_coordinates = patch_w - (x2 - x1), patch_h - (y2 - y1), patch_w, patch_h
     elif index == 1:
         x1, y1, x2, y2 = xc, max(yc - patch_h, 0), min(mosaic_w, xc + patch_w), yc
-        patch_coordinates = 0, max(patch_h - (y2 - y1), 0), min(x2 - x1, patch_w), patch_h
+        patch_coordinates = 0, max(patch_h - (y2 - y1), 0), x2 - x1, patch_h
     elif index == 2:
-        x1, y1, x2, y2 = max(xc - patch_w, 0), yc, xc, min(mosaic_h - patch_h, mosaic_h)
-        patch_coordinates = max(patch_w - (x2 - x1), 0), 0, patch_w, min(y2 - y1, patch_h)
+        x1, y1, x2, y2 = max(xc - patch_w, 0), yc, xc, min(yc + patch_h, mosaic_h)
+        patch_coordinates = max(patch_w - xc, 0), 0, patch_w, y2 - y1
     elif index == 3:
         x1, y1, x2, y2 = xc, yc, min(xc + patch_w, mosaic_w), min(yc + patch_h, mosaic_h)
-        patch_coordinates = 0, 0, min(x2 - x1, patch_w), min(y2 - y1, patch_h)
+        patch_coordinates = 0, 0, x2 - x1, y2 - y1
     return (x1, y1, x2, y2), patch_coordinates
 
 class MosaicDataset(Dataset):

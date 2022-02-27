@@ -15,7 +15,7 @@ from .network_blocks import BaseConv, DWConv
 import pytorch_lightning as pl
 
 
-class YOLOXHead(pl.LightningModule):
+class YOLOXHead(nn.Module):
     def __init__(
             self,
             num_classes,
@@ -163,8 +163,8 @@ class YOLOXHead(pl.LightningModule):
     @staticmethod
     def add_model_specific_args(parent_parser):  # param no-cover
         """
-                Define parameters that only apply to this model
-                """
+            Define parameters that only apply to this model
+        """
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         # logging params
         parser.add_argument(
@@ -173,35 +173,5 @@ class YOLOXHead(pl.LightningModule):
             type=int,
             help="Number of classes",
         )
-        parser.add_argument(
-            "--width",
-            default=1.0,
-            type=float,
-            help="width of the network",
-        )
-        parser.add_argument(
-            "--strides",
-            default=[8, 16, 32],
-            type=int,
-            help="stride of output feature map",
-        )
-        parser.add_argument(
-            "--in_channels",
-            default=[256, 512, 1024],
-            type=int,
-            help="in_channels of stem block",
-        )
-        parser.add_argument(
-            "--act",
-            default="silu",
-            type=str,
-            help="activation function",
-        )
-        parser.add_argument(
-            "--depthwise",
-            action='store_true',
-            help="whether to use depthwise convolution",
-        )
-
         return parser
 

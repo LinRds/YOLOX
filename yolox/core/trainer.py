@@ -50,7 +50,7 @@ class LightningDataModule(pl.Callback):
             dataset = COCODataset(
                 data_dir=self.data_dir,
                 json_file=self.train_ann,
-                img_size=self.input_size,
+                image_size=self.input_size,
                 preproc=TrainTransform(
                     max_labels=50,
                     flip_prob=self.flip_prob,

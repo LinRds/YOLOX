@@ -111,7 +111,7 @@ class Exp(BaseExp):
             dataset = COCODataset(
                 data_dir=self.data_dir,
                 json_file=self.train_ann,
-                img_size=self.input_size,
+                image_size=self.input_size,
                 preproc=TrainTransform(
                     max_labels=50,
                     flip_prob=self.flip_prob,
@@ -244,7 +244,7 @@ class Exp(BaseExp):
             data_dir=self.data_dir,
             json_file=self.val_ann if not testdev else self.test_ann,
             name="val2017" if not testdev else "test2017",
-            img_size=self.test_size,
+            image_size=self.test_size,
             preproc=ValTransform(legacy=legacy),
         )
 

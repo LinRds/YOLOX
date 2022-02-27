@@ -6,7 +6,7 @@ from .darknet import CSPDarknet
 import torch.nn as nn
 
 
-class YOLOPAFPN(pl.LightningModule):
+class YOLOPAFPN(nn.Module):
     """
     YOLOv3 model. Darknet 53 is the default backbone of this model.
     """
@@ -21,7 +21,6 @@ class YOLOPAFPN(pl.LightningModule):
             act="silu",
     ):
         super().__init__()
-        self.save_hyperparameters()
         self.backbone = CSPDarknet(depth, width, depthwise=depthwise, act=act)
         self.in_features = in_features
         self.in_channels = in_channels
@@ -112,21 +111,6 @@ class YOLOPAFPN(pl.LightningModule):
         outputs = (pan_out2, pan_out1, pan_out0)
         return outputs
 
-    def training_step(self, batch, batch_idx):
-        x, _ = batch
-        return self(x)
-
-    def validation_step(self, batch, batch_idx):
-        x, _ = batch
-        return self(x)
-
-    def test_step(self, batch, batch_idx):
-        x, _ = batch
-        return self(x)
-
-    def configure_optimizers(self):
-        pass
-
     @staticmethod
     def add_model_specific_args(parent_parser):  # param no-cover
         """
@@ -140,34 +124,4 @@ class YOLOPAFPN(pl.LightningModule):
             type=float,
             help="depth of the network",
         )
-        parser.add_argument(
-            "--width",
-            default=1.0,
-            type=float,
-            help="width(channel) of the network",
-        )
-        parser.add_argument(
-            "--in_features",
-            default="[dark3, dark4, dark5]",
-            type=str,
-            help="output feature map of fpn",
-        )
-        parser.add_argument(
-            "--in_channels",
-            default="[256, 512, 1024]",
-            type=int,
-            help="in_channels of stem block",
-        )
-        parser.add_argument(
-            "--act",
-            default="silu",
-            type=str,
-            help="activation function",
-        )
-        parser.add_argument(
-            "--depthwise",
-            action='store_true',
-            help="whether to use depthwise convolution",
-        )
-
         return parser

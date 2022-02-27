@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import pytorch_lightning as pl
+
 
 def get_activation(name="silu", inplace=True):
     if name == "silu":
@@ -14,7 +14,7 @@ def get_activation(name="silu", inplace=True):
               f"nn.LeakyRelU] respectively, but got {name} "
 
 
-class BaseConv(pl.LightningModule):
+class BaseConv(nn.Module):
     """
     spatial resolution non-degenerated convolution when stride is 1, so the padding should meet:
     padding = (kernel_size - 1) // 2. (Note: kernel_size is odd)
@@ -24,7 +24,7 @@ class BaseConv(pl.LightningModule):
         super(BaseConv, self).__init__()
         pad = (kernel_size - 1) // 2
         self.act = get_activation(act, inplace=True)
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, pad, groups, bias)
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, pad, groups=groups, bias=bias)
         self.bn = nn.BatchNorm2d(out_channels)
 
     def forward(self, x):
@@ -34,7 +34,7 @@ class BaseConv(pl.LightningModule):
         return self.act(self.conv(x))
 
 
-class DWConv(pl.LightningModule):
+class DWConv(nn.Module):
     """
     BaseConv + 1x1 Conv
     """
@@ -57,7 +57,7 @@ class DWConv(pl.LightningModule):
         return self.pointconv(self.depthconv(x))
 
 
-class ResLayer(pl.LightningModule):
+class ResLayer(nn.Module):
     """
     Residual layer which keep the same size of channel before and after Conv
     """
@@ -82,7 +82,7 @@ class ResLayer(pl.LightningModule):
         return x + y
 
 
-class Bottleneck(pl.LightningModule):
+class Bottleneck(nn.Module):
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -91,7 +91,7 @@ class Bottleneck(pl.LightningModule):
                  depthwise=False,
                  act="silu"):
         super().__init__()
-        hidden_channels = in_channels * expansion
+        hidden_channels = int(in_channels * expansion)
         Conv = DWConv if depthwise else BaseConv
         self.layer1 = BaseConv(in_channels, hidden_channels, 1, 1, act=act)
         self.layer2 = Conv(hidden_channels, out_channels, 3, 1, act=act)
@@ -104,13 +104,13 @@ class Bottleneck(pl.LightningModule):
         return y
 
 
-class SPPBottleNeck(pl.LightningModule):
+class SPPBottleNeck(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=(5, 9, 13), act="silu"):
         super().__init__()
         hidden_channels = in_channels // 2
         self.conv1 = BaseConv(in_channels, hidden_channels, kernel_size=1, stride=1, act=act)
-        self.bottleneck = pl.LightningModuleList(
-            [nn.MaxPool2d(ks, padding=(ks // 2)) for ks in kernel_size]
+        self.bottleneck = nn.ModuleList(
+            [nn.MaxPool2d(ks, padding=ks // 2, stride=1) for ks in kernel_size]
         )
         cat_channels = hidden_channels * (len(kernel_size) + 1)
         self.conv2 = BaseConv(cat_channels, out_channels, kernel_size=1, stride=1, act=act)
@@ -121,7 +121,7 @@ class SPPBottleNeck(pl.LightningModule):
         return self.conv2(x)
 
 
-class CSPLayer(pl.LightningModule):
+class CSPLayer(nn.Module):
     """C3 in yolox, CSP Bottleneck with 3 convolutions"""
 
     def __init__(self,
@@ -141,7 +141,7 @@ class CSPLayer(pl.LightningModule):
         super(CSPLayer, self).__init__()
         hidden_channels = int(in_channels * expansion)
         self.conv1 = BaseConv(in_channels, hidden_channels, kernel_size=1, stride=1, act=act)
-        self.conv2 = BaseConv(hidden_channels, hidden_channels, kernel_size=1, stride=1, act=act)
+        self.conv2 = BaseConv(in_channels, hidden_channels, kernel_size=1, stride=1, act=act)
         self.conv3 = BaseConv(2 * hidden_channels, out_channels, kernel_size=1, stride=1, act=act)
 
         module_list = [
@@ -158,14 +158,14 @@ class CSPLayer(pl.LightningModule):
         return self.conv3(y)
 
 
-class Fcous(pl.LightningModule):
+class Focus(nn.Module):
     """
     Blocksize fixes to 4.
     """
 
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, act="silu"):
-        super(Fcous, self).__init__()
-        self.conv = BaseConv(in_channels * 4, out_channels, kernel_size, stride, act)
+        super(Focus, self).__init__()
+        self.conv = BaseConv(in_channels * 4, out_channels, kernel_size, stride, act=act)
 
     def forward(self, x):
         x_1 = x[..., ::2, ::2]

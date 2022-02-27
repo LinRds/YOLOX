@@ -313,9 +313,9 @@ def check_requirements(requirements=ROOT / 'requirements.txt', exclude=(), insta
 
 def check_img_size(imgsz, s=32, floor=0):
     # Verify image size is a multiple of stride s in each dimension
-    if isinstance(imgsz, int):  # integer i.e. img_size=640
+    if isinstance(imgsz, int):  # integer i.e. image_size=640
         new_size = max(make_divisible(imgsz, int(s)), floor)
-    else:  # list i.e. img_size=[640, 480]
+    else:  # list i.e. image_size=[640, 480]
         new_size = [max(make_divisible(x, int(s)), floor) for x in imgsz]
     if new_size != imgsz:
         print(f'WARNING: --img-size {imgsz} must be multiple of max stride {s}, updating to {new_size}')
@@ -819,7 +819,7 @@ def apply_classifier(x, model, img, im0):
             b[:, 2:] = b[:, 2:] * 1.3 + 30  # pad
             d[:, :4] = xywh2xyxy(b).long()
 
-            # Rescale boxes from img_size to im0 size
+            # Rescale boxes from image_size to im0 size
             scale_coords(img.shape[2:], d[:, :4], im0[i].shape)
 
             # Classes
