@@ -93,7 +93,7 @@ def main(args):
     strides = [8, 16, 32]
     in_channels = [256, 512, 1024]
     in_features = ["dark3", "dark4", "dark5"]
-    log_dir = ROOT/"log"
+    log_dir = ROOT/"YOLOX_outputs"
     args.no_aug = args.no_aug_epochs == -1
 
     backbone = YOLOPAFPN(depth=args.depth,
