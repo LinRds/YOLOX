@@ -135,7 +135,6 @@ def main(args):
                                 mixup_scale=mixup_scale)
 
     wandb_logger = WandbLogger(project="YOLOX",
-                               save_dir=log_dir,
                                log_model='all')
 
     checkpoint_callback = ModelCheckpoint(save_last=True,
@@ -167,6 +166,7 @@ def main(args):
                                     log_metric_callback,
                                     build_evaluator_callback
                                     ])
+    wandb_logger.watch(model)
     trainer.fit(model, datamodule=data_module)
 
 
