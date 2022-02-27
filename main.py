@@ -166,7 +166,7 @@ def main(args):
                                     log_metric_callback,
                                     build_evaluator_callback
                                     ])
-    wandb_logger.watch(model)
+    wandb_logger.watch(model, log_graph=False)
     trainer.fit(model, datamodule=data_module)
 
 
