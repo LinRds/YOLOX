@@ -1,7 +1,7 @@
 import random
 import cv2
 import numpy as np
-from utils import adjust_box_anns
+from yolox.utils import adjust_box_anns
 
 from .datasets_wrapper import Dataset
 from ..data_augment import random_affine
