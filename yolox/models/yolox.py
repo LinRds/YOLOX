@@ -128,13 +128,14 @@ class YOLOX(pl.LightningModule):
         return output_dict
 
     def validation_step(self, batch, batch_index):
+        infer_start_time = time.time()
         outputs = self._shared_eval(batch)
         xin, _, info_imgs, ids = batch
 
         if self.decode_in_inference:
             outputs = self.decode_outputs(outputs, dtype=xin[0].type())
 
-        self.evaluator.evaluate(batch, self, outputs, batch_index, self.is_distributed)
+        self.evaluator.evaluate(batch, self, infer_start_time, outputs, batch_index, self.is_distributed)
 
     def test_step(self, batch, batch_idx):
         self._shared_eval(batch)

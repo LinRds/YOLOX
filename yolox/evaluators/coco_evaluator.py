@@ -121,6 +121,7 @@ class COCOEvaluator:
             self,
             batch,
             pl_module,
+            inference_start_time,
             outputs,
             cur_iter,
             distributed=False,
@@ -150,7 +151,7 @@ class COCOEvaluator:
             # skip the last iter since batchsize might be not enough for batch inference
         is_time_record = cur_iter < max_iter
         if is_time_record:
-            start = time.time()
+            start = inference_start_time
 
         if decoder is not None:
             outputs = decoder(outputs, dtype=outputs.type())
