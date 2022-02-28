@@ -1,0 +1,35 @@
+unset all_proxy && unset ALL_PROXY
+export all_proxy="socks5://127.0.0.1:1080"
+python /media/rds/RDS/VsProject/YOLOV5/main.py \
+--data_dir '/media/rds/RDS/datasets/MINITest/images' \
+--train_ann 'instances_train.json' \
+--val_ann 'instances_test.json' \
+--test_ann 'instances_test.json' \
+--gpus 1  \
+--batch_size 3 \
+--log_every_n_steps 10  \
+--val_check_interval 10  \
+--no_aug_epochs 2  \
+--max_epochs 5 \
+--accumulate_grad_batches 1  \
+--amp_backend 'apex'  \
+--num_classes 4 \
+--multiscale_range 2 \
+--depth 0.33 \
+--width 0.5 \
+--data_num_workers 4 \
+--mosaic_prob 0.5 \
+--mixup_prob 1 \
+--hsv_prob 0.7 \
+--flip_prob 0.7 \
+--degrees 10.0 \
+--translate 0.1 \
+--shear 2.0 \
+--nmsthre 0.65 \
+--input_size '[160, 160]' \
+--test_size '[160, 160]' \
+--mosaic_scale '[0.5, 1.5]' \
+--mixup_scale '[0.5, 1.5]' \
+--strides '[8, 16, 32]' \
+--in_channels '[256, 512, 1024]' \
+--in_features "['dark3', 'dark4', 'dark5']"
