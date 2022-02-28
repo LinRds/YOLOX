@@ -16,8 +16,9 @@ import random
 import torch.distributed as dist
 
 
-class LogPredictionsCallback(Callback):
-
+class WandBLoggerCallback(Callback):
+    def setup(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", stage: Optional[str] = None) -> None:
+        pass
     def on_validation_batch_end(
             self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
         pass

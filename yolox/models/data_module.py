@@ -1,3 +1,4 @@
+import wandb
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS
 import pytorch_lightning as pl
 from yolox.data import COCODataset, TrainTransform, YoloBatchSampler, DataLoader, \
@@ -8,6 +9,12 @@ from typing import Any, List, Dict, Tuple, Union
 import torch.distributed as dist
 import torch
 from argparse import ArgumentParser
+from pathlib import Path
+WANDB_ARTIFACT_PREFIX = 'wandb-artifact://'
+
+
+def remove_prefix(from_string, prefix=WANDB_ARTIFACT_PREFIX):
+    return from_string[len(prefix):]
 
 
 class YOLOXDataModule(pl.LightningDataModule):
@@ -42,7 +49,10 @@ class YOLOXDataModule(pl.LightningDataModule):
             legacy: bool = False,
             max_labels: int = 50,
             flip_prob: float = 0.5,
-            hsv_prob: float = 1.0
+            hsv_prob: float = 1.0,
+            resume=None,
+            upload=False,
+            upload_only_val: bool = True
     ):
         """
         :param batch_size:
@@ -81,6 +91,9 @@ class YOLOXDataModule(pl.LightningDataModule):
         self.mixup_prob = mixup_prob
         self.shear = shear
         self.seed = seed
+        self.resume = resume
+        self.upload = upload
+        self.upload_only_val = upload_only_val
         if data_dir is None:
             data_dir = self.get_data_dir()
         self.data_dir = data_dir
@@ -96,6 +109,16 @@ class YOLOXDataModule(pl.LightningDataModule):
         self.test_size = test_size
         self.mosaic_scale = mosaic_scale
         self.mixup_scale = mixup_scale
+
+    def prepare_data(self) -> None:
+        if self.resume is not None and isinstance(self.resume, Dict):
+            path, alias = self.resume['path'], self.resume['alias']
+            if isinstance(path, str) and path.startswith(WANDB_ARTIFACT_PREFIX):
+                artifact_path = Path(remove_prefix(path, WANDB_ARTIFACT_PREFIX) + ":" + alias)
+                dataset_artifact = wandb.use_artifact(artifact_path.as_posix().replace("\\", "/"))
+                assert dataset_artifact is not None, "'Error: W&B dataset artifact doesn\'t exist'"
+                datadir = dataset_artifact.download()
+                self.data_dir = datadir
 
     def setup(self, stage=None):
         local_rank = get_local_rank()
@@ -122,7 +145,6 @@ class YOLOXDataModule(pl.LightningDataModule):
                 mosaic_prob=self.mosaic_prob,
                 mixup_prob=self.mixup_prob,
             )
-
             self.val_dataset = COCODataset(
                 data_dir=self.data_dir,
                 json_file=self.val_ann,
@@ -130,6 +152,7 @@ class YOLOXDataModule(pl.LightningDataModule):
                 image_size=self.test_size,
                 preproc=self.val_transform,
             )
+
         if stage == "test" or stage is None:
             self.test_dataset = COCODataset(
                 data_dir=self.data_dir,
